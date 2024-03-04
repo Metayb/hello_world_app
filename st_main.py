@@ -2,7 +2,7 @@ import streamlit as st
 import cv2
 
 def load_saved_m():
-  model_after = main.deepforest.load_from_checkpoint("/content/drive/MyDrive/<TemporaryDirectory '/tmp/tmpausbc2cx'>/checkpoint_multi_newplot.pl")
+  model_after = main.deepforest.load_from_checkpoint("./chkpt25_01032024.pl")
   return model_after
 
 def plot_img_with_bb(raster_path,box_df,num,label1_count,weed_percentage):
