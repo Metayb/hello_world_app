@@ -4,11 +4,11 @@ import pandas as pd
 import os
 import time
 import numpy as np
-from deepforest import main
+from deepforest.main import deepforest
 import tempfile
 
 def load_saved_m():
-  model_after = main.deepforest.load_from_checkpoint("./chkpt25_01032024.pl")
+  model_after = deepforest.load_from_checkpoint("./chkpt25_01032024.pl")
   return model_after
 
 def plot_img_with_bb(raster_path,box_df,num,label1_count,weed_percentage):
