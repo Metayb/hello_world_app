@@ -22,12 +22,12 @@ def plot_img_with_bb(raster_path,box_df,num,label1_count,weed_percentage):
         cv2.rectangle(original_image, (xmin, ymin), (xmax, ymax), color, thickness)
         cv2.putText(original_image, f"{label}", (xmin, ymin - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
 
-    cv2.putText(original_image, f"Cassava Count: {label1_count}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX,3 , (255, 255, 255), 3)
-    cv2.putText(original_image, f"Weed %: {weed_percentage:.2f}%", (60, 120), cv2.FONT_HERSHEY_SIMPLEX,3 , (255, 255, 255), 3)
-    output_path = f"newplot/newplot_output/sample_output_{num}.jpg"#new_images_output_Y1
+    # cv2.putText(original_image, f"Cassava Count: {label1_count}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX,3 , (255, 255, 255), 3)
+    # cv2.putText(original_image, f"Weed %: {weed_percentage:.2f}%", (60, 120), cv2.FONT_HERSHEY_SIMPLEX,3 , (255, 255, 255), 3)
+    output_path = f"sample_output_{num}.jpg"#new_images_output_Y1
     cv2.imwrite(output_path, original_image)
     print(f"Image with bounding boxes saved at: {output_path}")
-    return
+    return original_image
 
 def get_label_color(label):
     # Define a dictionary mapping labels to colors
@@ -38,7 +38,7 @@ def get_label_color(label):
 
 
 def predict_(m,new_image_name):
-    patch_size = 100
+    patch_size = 800
     patch_overlap = 0
     iou_threshold=0.05
     box_df = m.predict_tile(new_image_name, return_plot=False, patch_size=patch_size, patch_overlap=patch_overlap)
@@ -80,31 +80,38 @@ def calculate_growth_areas(df, image_shape):
 
 def main():
     st.title('Crop and Weed Growth Prediction')
+    link='Step 1: Orthophoto creation [Link to WebODM](http://102.90.2.78:8000/welcome)'
+    st.markdown(link,unsafe_allow_html=True)
 
     # File uploader
-    uploaded_file = st.file_uploader('Upload an image', type=['tif'])
+    uploaded_file = st.file_uploader('Upload ortho image', type=['tif'])
 
     if uploaded_file is not None:
         print('upload successful!')
         # Load model
         deepmodel_load = load_saved_m()
+        with open(uploaded_file.name, 'wb') as f:
+            f.write(uploaded_file.getvalue())
+        with st.spinner('Prediction in progress... Please wait'):
+            # Perform prediction
+            box_df_mod = finding_bb_df(deepmodel_load, uploaded_file.name)
 
-        # Perform prediction
-        box_df_mod = finding_bb_df(deepmodel_load, uploaded_file)
+            # Read image
+            read_new_image = cv2.imread(uploaded_file.name)
+            img_height, img_width, channels = read_new_image.shape
+            image_shape = (img_height, img_width, channels)
+            label1_count = len(box_df_mod[box_df_mod['label']=='cassava'])
+            # Calculate growth areas
+            cassava_area, weed_area, percentage_weed_growth = calculate_growth_areas(box_df_mod, image_shape)
 
-        # Read image
-        read_new_image = cv2.imread(uploaded_file.name)
-        img_height, img_width, channels = read_new_image.shape
-        image_shape = (img_height, img_width, channels)
+            # Display predicted image
+            st.image(plot_img_with_bb(uploaded_file.name, box_df_mod, 102,label1_count,percentage_weed_growth), caption='Predicted Image', use_column_width=True)
 
-        # Calculate growth areas
-        cassava_area, weed_area, percentage_weed_growth = calculate_growth_areas(box_df_mod, image_shape)
-
-        # Display predicted image
-        st.image(plot_img_with_bb(uploaded_file.name, box_df_mod, 102), caption='Predicted Image', use_column_width=True)
-
-        # Display results
-        st.write(f'Percentage Weed Growth: {percentage_weed_growth}%')
+            # Display results
+            st.write(f'Cassava Count: {label1_count}')
+            st.write(f'Percentage Weed Growth: {percentage_weed_growth:.2f}%')
+            f.close()
+            os.remove(uploaded_file.name)
 
 if __name__ == '__main__':
     main()
